@@ -1,35 +1,181 @@
+#include <future>
+#include <iomanip>
 #include <iostream>
-#include <stdlib.h>     /* srand, rand */
-#include <time.h>       /* time */
+#include <random>
+#include <cstdlib>     /* srand, rand */
+#include <ctime>       /* time */
+#include <__random/random_device.h> /* Hardware random number generator */
 
-double Factorial(double n)
-{
-    // INSERT CODE HERE
-    // Write this helper function to assist in writing the CalculateNumPossibleLayouts function below
-    return 0.0;
-}
+// Forward declaration to allow the RunSimulation function to call this function
+std::pair<int, int> RunSubsetSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts, int coinsPerRoom[], int numRooms);
 
-double CalculateNumPosibleLayouts(double sample, double objects)
-{
-    // INSERT CODE HERE
-    // Determine whether the randomly generated elements will be combinations or permutations
-    // Based on that information, write code to calculate the number of unique layouts possible on each level type
-    // This function only needs to calculate for a single layout type, it will be called by a larger function below.
-    // You should write and use the Factorial funciton above.
-    return 0.0;
-}
-
-
+// Forward declaration to allow the GenerateLevelAndGetCoins function to call this function
 int GenerateLevelAndGetCoins(int levelLayoutType, int roomsPerLevelLayout[], int coinsPerRoom[], int numRooms);
+
+double Factorial(double n) {
+    // Convert n to an integer for the loop
+    const auto number = static_cast<int>(n);
+
+    if (number <= 1)
+        return 1.0;
+
+    // Start with 1
+    double result = 1.0;
+
+    // Multiply by each number from n down to 1
+    for (int i = number; i > 1; i--)
+    {
+        // Multiply the result by the current number
+        result *= i;
+    }
+
+    return result;
+}
+
+// Added the useCombinations parameter to allow for permutations or combinations with a default value to keep main code the same
+double CalculateNumPosibleLayouts(double sample, double objects, const bool useCombinations = true)
+{
+    // Check for invalid cases
+    if (sample > objects || sample < 0 || objects < 0)
+        return 0.0; // Invalid case
+
+    // Check if we are using permutations
+    const bool usePermutations = !useCombinations;
+
+    if (useCombinations)
+    {
+        // Combinations: C(objects, sample) = objects! / (sample! * (objects - sample)!)
+        return Factorial(objects) / (Factorial(sample) * Factorial(objects - sample));
+    }
+
+    if (usePermutations)
+    {
+        // Permutations: P(objects, sample) = objects! / (objects - sample)!
+        return Factorial(objects) / Factorial(objects - sample);
+    }
+}
+
+// TODO: Limit the number of threads and queue up the remaining simulations
 void RunSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts, int coinsPerRoom[], int numRooms)
 {
-    // INSERT CODE HERE
-    // Write code to run a Monte Carlo simulation over 10,000,000 iterations to determine the highest number of 
-    // coins that can reasonably be generated, as well as the average number of coins.
-    // Finally, calculate the ratio between the average number of coins, and the expected maximum number of coins, 
-    // and display it in three forms: a decimal ratio, a percentage to one decimal place, and as a fraction (tenths).
-    // You may use the GenerateLevelAndGetCoins function above to assist in your simulation - be sure
-    // to randomly choose a layout index first and pass it to the function!
+    // Get the number of concurrent threads supported by the hardware
+    unsigned int n = std::thread::hardware_concurrency();
+    std::cout << "\n" << n << " Concurrent threads are supported.\n";
+
+    // Record the start time
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    // Limit the number of simulations per thread to avoid running out of memory
+    // Constexpr is used to define a constant expression at compile time
+    constexpr int maxSimulationsPerThread = 100000;
+
+    // Calculate the number of threads needed (Ceiling division)
+    int threads = (numSimulations + maxSimulationsPerThread - 1) / maxSimulationsPerThread;
+
+    // Calculate the number of simulations per thread
+    int simulationsPerThread = numSimulations / threads;
+
+    // Calculate the remainder of simulations
+    int remainder = numSimulations % threads;
+
+    // Start a new thread and store the future results in the vector
+    std::vector<std::future<std::pair<int, int>>> futures;
+
+    for (int i = 0; i < threads; ++i)
+    {
+        // Calculate the number of simulations for this thread
+        int currentSimulations = simulationsPerThread + (i < remainder ? 1 : 0);
+
+        futures.push_back(
+                        std::async(
+                                    std::launch::async,         // Run the function in a separate thread
+                                    RunSubsetSimulation,
+                                    currentSimulations,
+                                    roomsPerLevelLayout,
+                                    numLayouts,
+                                    coinsPerRoom,
+                                    numRooms));
+    }
+
+    // Accumulate the results from the futures
+    long totalCoins = 0;
+    int highestCoins = 0;
+
+    // Wait for all threads to finish and get the results
+    for (auto& future : futures)
+    {
+        // Get the result from the future
+        // Using auto here because we can create and assign a pair of integers in one line
+        auto [subsetTotalCoins, subsetMaxCoins] = future.get();
+
+        // Add the subset results to the total
+        totalCoins += subsetTotalCoins;
+
+        // Check if the subset max coins is higher than the current highest coins
+        // If it is, update the highest coins
+        if (subsetMaxCoins > highestCoins)
+            highestCoins = subsetMaxCoins;
+    }
+
+    // Calculate the average
+    double averageCoins = static_cast<double>(totalCoins) / numSimulations;
+
+    // Calculate the ratio
+    double ratio = averageCoins / highestCoins;
+
+    // Record the end time
+    auto endTime = std::chrono::high_resolution_clock::now();
+
+    // Calculate the duration
+    std::chrono::duration<double> elapsedSeconds = endTime - startTime;
+
+    std::cout << "\nMonte Carlo Simulation Results:\n";
+    std::cout << "Simulation duration: " << elapsedSeconds.count() << " seconds\n";
+    std::cout << "Total number of simulations: " << numSimulations << "\n";
+    std::cout << "Total number of coins: " << totalCoins << "\n";
+    std::cout << "Highest number of coins: " << highestCoins << "\n";
+    std::cout << "Average number of coins: " << averageCoins << "\n";
+    std::cout << "Ratio (decimal): " << ratio << "\n";
+    std::cout << "Ratio (percentage): " << std::fixed << std::setprecision(1) << ratio * 100 << "%\n";
+    std::cout << "Ratio (fraction, tenths): " << static_cast<int>(ratio * 10) << "/10\n";
+}
+// Function to run the simulation for a subset of the total number of simulations
+std::pair<int, int> RunSubsetSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts, int coinsPerRoom[], int numRooms)
+{
+    // Random number generation setup
+    // std::random_device is a hardware random number generator
+    std::random_device randDevice;
+
+    // std::mt19937 is a Mersenne Twister pseudo-random generator
+    // Seeded with the hardware random number generator
+    std::mt19937 random(randDevice());
+
+    // std::uniform_int_distribution is a random number distribution that produces integers with equal probability
+    std::uniform_int_distribution<int> layoutDist(0, numLayouts - 1);
+
+    // Accumulate the results from the simulations
+    int totalCoins = 0;
+    int highestCoins = 0;
+
+    for (int i = 0; i < numSimulations; ++i)
+    {
+        // Randomly choose a layout index
+        const int layoutIndex = layoutDist(random);
+
+        // Generate the level and get the coins
+        const int coins = GenerateLevelAndGetCoins(layoutIndex, roomsPerLevelLayout, coinsPerRoom, numRooms);
+
+        // Add the coins to the total
+        totalCoins += coins;
+
+        // Check if the coins are higher than the current highest coins
+        // If they are, update the highest coins
+        if (coins > highestCoins)
+            highestCoins = coins;
+    }
+
+    // Return the int pair of total coins and highest coins
+    return {totalCoins, highestCoins};
 }
 
 int GenerateLevelAndGetCoins(int levelLayoutType, int roomsPerLevelLayout[], int coinsPerRoom[], int numRooms)
@@ -116,6 +262,7 @@ int main()
     int numSimulations = 10000000; // 10,000,000
 
     CalculateNumLayoutsForAllTypes(roomsPerLevelLayoutType, numLayoutTypes, numRooms);
-    std::cout << "\n\nRunning simulation, " << numSimulations << "iterations, please wait...";
+    std::cout << "\nRunning simulation, " << numSimulations << " iterations, please wait...";
+
     RunSimulation(numSimulations, roomsPerLevelLayoutType, numLayoutTypes, coinsPerRoom, numRooms);
 }
