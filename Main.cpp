@@ -33,6 +33,8 @@ double Factorial(double n) {
         result *= i;
     }
 
+    //std::cout << "Factorial of " << n << " is " << std::fixed << std::setprecision(0) << result << "\n";
+
     return result;
 }
 
@@ -227,12 +229,12 @@ int GenerateLevelAndGetCoins(int levelLayoutType, int roomsPerLevelLayout[], int
     return coinsTotal;
 }
 
-void CalculateNumLayoutsForAllTypes(int roomsPerLevelLayout[], int numLayouts, int numRooms)
+void CalculateNumLayoutsForAllTypes(int roomsPerLevelLayout[], int numLayouts, int numRooms, bool verbose = false)
 {
-    std::cout << "Number of layouts possible, by layout type:";
+    std::cout << "Number of layouts possible, by layout type:\n";
+    std::cout << "Showing results in " << (verbose ? "fixed" : "scientific") <<" notation.\n";
     // Loop through all layout types
-    for (int i = 0; i < numLayouts; ++i)
-    {
+    for (int i = 0; i < numLayouts; ++i) {
         // Add line breaks every 5 layout types
         if (i % 5 == 0)
         {
@@ -240,7 +242,14 @@ void CalculateNumLayoutsForAllTypes(int roomsPerLevelLayout[], int numLayouts, i
         }
         // Calculate the possible layouts for this number of rooms
         double numLayouts = CalculateNumPosibleLayouts(roomsPerLevelLayout[i], numRooms);
-        std::cout << "Layout " << (i+1) << ": " << numLayouts << "\t|\t";
+
+        // By default, output in scientific notation
+        // For testing I wanted to see the full number, so I used fixed notation
+
+        if (verbose)
+            std::cout << "Layout " << (i+1) << ": " << std::fixed << std::setprecision(0) << numLayouts << "\t|\t";
+        else
+            std::cout << "Layout " << (i+1) << ": " << numLayouts << "\t|\t"; // Scientific notation
     }
     std::cout << "\n";
 }
