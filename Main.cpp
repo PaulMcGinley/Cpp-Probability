@@ -45,7 +45,7 @@ double Factorial(double n) {
 // 5 rooms, 3 selected: C(5, 3) = 5! / (3! * (5 - 3)!) = 10
 // 5 rooms, 3 selected: P(5, 3) = 5! / (5 - 3)! = 60
 // If the order does not matter, use combinations, else use permutations
-double CalculateNumPosibleLayouts(double sample, double objects, const bool useCombinations = true)
+double CalculateNumPosibleLayouts(double sample, double objects, const bool useCombinations = false)
 {
     // Check for invalid cases
     if (sample > objects || sample < 0 || objects < 0)
@@ -151,8 +151,7 @@ void RunSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts
     std::cout << "Average number of coins: " << averageCoins << "\n";
     std::cout << "Ratio (decimal): " << ratio << "\n";
     std::cout << "Ratio (percentage): " << std::fixed << std::setprecision(1) << ratio * 100 << "%\n";
-    std::cout << "Ratio (fraction, tenths): " << static_cast<int>(ratio * 10) << "/10\n";
-}
+    std::cout << "Ratio (fraction, tenths): " << static_cast<int>(std::round(ratio * 10)) << "/10\n";}
 
 // RunSubsetSimulation: Run a subset of the total number of simulations
 // Method: Randomly choose a layout index
@@ -233,6 +232,7 @@ void CalculateNumLayoutsForAllTypes(int roomsPerLevelLayout[], int numLayouts, i
 {
     std::cout << "Number of layouts possible, by layout type:\n";
     std::cout << "Showing results in " << (verbose ? "fixed" : "scientific") <<" notation.\n";
+
     // Loop through all layout types
     for (int i = 0; i < numLayouts; ++i) {
         // Add line breaks every 5 layout types
