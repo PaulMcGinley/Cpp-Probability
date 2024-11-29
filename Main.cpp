@@ -5,6 +5,7 @@
 #include <cstdlib>     /* srand, rand */
 #include <ctime>       /* time */
 #include <__random/random_device.h> /* Hardware random number generator */
+#include <semaphore>
 
 // Forward declaration to allow the RunSimulation function to call this function
 std::pair<int, int> RunSubsetSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts, int coinsPerRoom[], int numRooms);
@@ -12,6 +13,9 @@ std::pair<int, int> RunSubsetSimulation(int numSimulations, int roomsPerLevelLay
 // Forward declaration to allow the GenerateLevelAndGetCoins function to call this function
 int GenerateLevelAndGetCoins(int levelLayoutType, int roomsPerLevelLayout[], int coinsPerRoom[], int numRooms);
 
+// Factorial: N! = N * (N-1) * (N-2) * ... * 1
+// Method: Multiply all the numbers from N down to 1
+// 5! = 5 * 4 * 3 * 2 * 1 = 120
 double Factorial(double n) {
     // Convert n to an integer for the loop
     const auto number = static_cast<int>(n);
@@ -32,7 +36,13 @@ double Factorial(double n) {
     return result;
 }
 
-// Added the useCombinations parameter to allow for permutations or combinations with a default value to keep main code the same
+// CalculateNumPosibleLayouts: Calculate the number of possible layouts
+// Method: Calculate the number of possible layouts using permutations or combinations
+// Permutations: The order matters, so the number of possible layouts is P(objects, sample) = objects! / (objects - sample)!
+// Combinations: The order does not matter, so the number of possible layouts is C(objects, sample) = objects! / (sample! * (objects - sample)!)
+// 5 rooms, 3 selected: C(5, 3) = 5! / (3! * (5 - 3)!) = 10
+// 5 rooms, 3 selected: P(5, 3) = 5! / (5 - 3)! = 60
+// If the order does not matter, use combinations, else use permutations
 double CalculateNumPosibleLayouts(double sample, double objects, const bool useCombinations = true)
 {
     // Check for invalid cases
@@ -44,18 +54,20 @@ double CalculateNumPosibleLayouts(double sample, double objects, const bool useC
 
     if (useCombinations)
     {
-        // Combinations: C(objects, sample) = objects! / (sample! * (objects - sample)!)
         return Factorial(objects) / (Factorial(sample) * Factorial(objects - sample));
     }
 
     if (usePermutations)
     {
-        // Permutations: P(objects, sample) = objects! / (objects - sample)!
         return Factorial(objects) / Factorial(objects - sample);
     }
 }
 
-// TODO: Limit the number of threads and queue up the remaining simulations
+// RunSimulation: Run the Monte Carlo simulation
+// Method: Run a subset of the total number of simulations in parallel using multiple threads
+// Calculate the total coins and the highest coins from the subset simulations
+// Accumulate the results from the subset simulations
+// Calculate the average, ratio, and duration of the simulation
 void RunSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts, int coinsPerRoom[], int numRooms)
 {
     // Get the number of concurrent threads supported by the hardware
@@ -98,7 +110,7 @@ void RunSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts
     }
 
     // Accumulate the results from the futures
-    long totalCoins = 0;
+    long totalCoins = 0;    // Use long to avoid overflow while testing 100,000,000 simulations
     int highestCoins = 0;
 
     // Wait for all threads to finish and get the results
@@ -139,7 +151,13 @@ void RunSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts
     std::cout << "Ratio (percentage): " << std::fixed << std::setprecision(1) << ratio * 100 << "%\n";
     std::cout << "Ratio (fraction, tenths): " << static_cast<int>(ratio * 10) << "/10\n";
 }
-// Function to run the simulation for a subset of the total number of simulations
+
+// RunSubsetSimulation: Run a subset of the total number of simulations
+// Method: Randomly choose a layout index
+// Generate the level and get the coins
+// Add the coins to the total
+// Check if the coins are higher than the current highest coins
+// If they are, update the highest coins
 std::pair<int, int> RunSubsetSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts, int coinsPerRoom[], int numRooms)
 {
     // Random number generation setup
