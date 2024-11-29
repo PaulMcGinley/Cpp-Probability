@@ -244,7 +244,7 @@ void CalculateNumLayoutsForAllTypes(int roomsPerLevelLayout[], int numLayouts, i
         double numLayouts = CalculateNumPosibleLayouts(roomsPerLevelLayout[i], numRooms);
 
         // By default, output in scientific notation
-        // For testing I wanted to see the full number, so I used fixed notation
+        // For testing I wanted to see the full number
 
         if (verbose)
             std::cout << "Layout " << (i+1) << ": " << std::fixed << std::setprecision(0) << numLayouts << "\t|\t";
@@ -252,6 +252,7 @@ void CalculateNumLayoutsForAllTypes(int roomsPerLevelLayout[], int numLayouts, i
             std::cout << "Layout " << (i+1) << ": " << numLayouts << "\t|\t"; // Scientific notation
     }
     std::cout << "\n";
+
 }
 
 int main()
