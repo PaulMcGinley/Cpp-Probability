@@ -4,7 +4,7 @@
 #include <random>
 #include <cstdlib>     /* srand, rand */
 #include <ctime>       /* time */
-#include <__random/random_device.h> /* Hardware random number generator */
+#include <random> /* Hardware random number generator */
 #include <semaphore>
 
 // Forward declaration to allow the RunSimulation function to call this function
@@ -120,7 +120,13 @@ void RunSimulation(int numSimulations, int roomsPerLevelLayout[], int numLayouts
     {
         // Get the result from the future
         // Using auto here because we can create and assign a pair of integers in one line
-        auto [subsetTotalCoins, subsetMaxCoins] = future.get();
+        //auto [subsetTotalCoins, subsetMaxCoins] = future.get(); //C++ 17+
+
+        // C++ 14 equivalence
+        std::pair<int,int> myInts = future.get();
+
+        int subsetTotalCoins = myInts.first;
+        int subsetMaxCoins = myInts.second;
 
         // Add the subset results to the total
         totalCoins += subsetTotalCoins;
